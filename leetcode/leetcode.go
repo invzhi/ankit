@@ -45,7 +45,7 @@ func New(path, dbfile string, lang Lang, codeFn CodeFunc) *LeetCode {
 func (l *LeetCode) Init() {
 	const schema = `
 		CREATE TABLE IF NOT EXISTS questions (
-			id           INTEGER,
+			id           INTEGER PRIMARY KEY,
 			title_slug   TEXT,
 			title        TEXT DEFAULT '',
 			content      TEXT DEFAULT '',
