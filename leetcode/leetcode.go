@@ -1,13 +1,16 @@
 package leetcode
 
 import (
+	"encoding/json"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"path/filepath"
 	"strconv"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/pkg/errors"
 
 	"github.com/invzhi/ankit"
 )
@@ -86,4 +89,44 @@ func (l *LeetCode) Notes() ([]ankit.Note, error) {
 	}
 
 	return notes, nil
+}
+
+func (l *LeetCode) questionInfo() error {
+	const url = "https://leetcode.com/api/problems/all/"
+
+	log.Print("fetching id and title_slug from leetcode.com api...")
+
+	resp, err := l.client.Get(url)
+	if err != nil {
+		return errors.Wrap(err, "cannot get questions from leetcode")
+	}
+	defer resp.Body.Close()
+
+	var questions struct {
+		StatStatusPairs []struct {
+			Stat struct {
+				FrontendQuestionID int    `json:"frontend_question_id"`
+				QuestionTitleSlug  string `json:"question__title_slug"`
+			} `json:"stat"`
+		} `json:"stat_status_pairs"`
+	}
+
+	dec := json.NewDecoder(resp.Body)
+	if err := dec.Decode(&questions); err != nil {
+		return errors.Wrap(err, "cannot decode questions from json")
+	}
+
+	stmt, err := l.db.Prepare("INSERT OR IGNORE INTO questions(id, title_slug) VALUES(?, ?)")
+	if err != nil {
+		return errors.Wrap(err, "cannot prepare stmt")
+	}
+
+	for _, pair := range questions.StatStatusPairs {
+		_, err = stmt.Exec(pair.Stat.FrontendQuestionID, pair.Stat.QuestionTitleSlug)
+		if err != nil {
+			return errors.Wrap(err, "cannot exec stmt")
+		}
+	}
+
+	return nil
 }
