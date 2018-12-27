@@ -57,7 +57,6 @@ func main() {
 	defer f.Close()
 
 	l := leetcode.New(path, dbfile, leetcode.Lang(lang), code)
-	l.Init()
 
 	if all {
 		if err := ankit.WriteToCSV(l, f); err != nil {

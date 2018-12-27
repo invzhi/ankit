@@ -33,16 +33,19 @@ type LeetCode struct {
 func New(path, dbfile string, lang Lang, codeFn CodeFunc) *LeetCode {
 	db := sqlx.MustOpen("sqlite3", filepath.Join(path, dbfile))
 
-	return &LeetCode{
+	l := LeetCode{
 		db:     db,
 		path:   path,
 		lang:   lang,
 		CodeFn: codeFn,
 	}
+	l.init()
+
+	return &l
 }
 
-// Init create sqlite3 table if not exists for leetcode questions, then get their id and title_slug from leetcode.
-func (l *LeetCode) Init() {
+// init create sqlite3 table if not exists for leetcode questions, then get their id and title_slug from leetcode.
+func (l *LeetCode) init() {
 	const schema = `
 		CREATE TABLE IF NOT EXISTS questions (
 			id           INTEGER PRIMARY KEY,
