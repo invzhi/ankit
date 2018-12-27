@@ -8,12 +8,11 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-
-	"github.com/invzhi/ankit"
 )
 
 type question struct {
-	l *LeetCode
+	l   *LeetCode
+	err error
 
 	ID          int    `db:"id"`
 	TitleSlug   string `db:"title_slug"`
@@ -25,8 +24,15 @@ type question struct {
 	Code        string
 }
 
+// Err implements the ankit.Note interface.
+func (q *question) Err() error { return q.err }
+
 // Fields implements the ankit.Note interface.
 func (q *question) Fields() []string {
+	if q.err != nil {
+		return nil
+	}
+
 	return []string{
 		strconv.Itoa(q.ID),
 		q.TitleSlug,
@@ -37,32 +43,6 @@ func (q *question) Fields() []string {
 		q.CodeSnippet,
 		q.Code,
 	}
-}
-
-// Question get question info by id from db, get question solution code from dir.
-// If question's info is empty in db, fetch info from leetcode.com api.
-func (l *LeetCode) Question(id int, dir string) (ankit.Note, error) {
-	q := question{l: l}
-	if err := q.get(id); err != nil {
-		return nil, errors.Wrapf(err, "cannot get question from db by id %d", id)
-	}
-
-	if q.empty() {
-		if err := q.fetch(); err != nil {
-			return nil, errors.Wrap(err, "cannot fetch question info from leetcode.com")
-		}
-		if err := q.update(); err != nil {
-			return nil, errors.Wrap(err, "cannot update question info to db")
-		}
-	}
-
-	var err error
-	q.Code, err = l.CodeFn(dir, l.lang)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot get question's code")
-	}
-
-	return &q, nil
 }
 
 func (q *question) empty() bool {

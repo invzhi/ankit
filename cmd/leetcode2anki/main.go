@@ -59,7 +59,7 @@ func main() {
 	l := leetcode.New(path, dbfile, leetcode.Lang(lang), code)
 
 	if all {
-		if err := ankit.WriteToCSV(l, f); err != nil {
+		if err := ankit.WriteToCSV(f, l); err != nil {
 			log.Fatal(err)
 		}
 	}

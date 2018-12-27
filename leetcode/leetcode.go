@@ -64,29 +64,28 @@ func (l *LeetCode) init() {
 }
 
 // Notes implements the ankit.Deck interface.
-func (l *LeetCode) Notes() ([]ankit.Note, error) {
+func (l *LeetCode) Notes() (<-chan ankit.Note, error) {
 	dirs, err := ioutil.ReadDir(l.path)
 	if err != nil {
 		return nil, err
 	}
 
-	var notes []ankit.Note
+	notes := make(chan ankit.Note)
 
-	for _, dir := range dirs {
-		if !dir.IsDir() {
-			continue
-		}
-		id, err := strconv.Atoi(dir.Name())
-		if err != nil {
-			continue
-		}
+	go func() {
+		for _, dir := range dirs {
+			if !dir.IsDir() {
+				continue
+			}
+			id, err := strconv.Atoi(dir.Name())
+			if err != nil {
+				continue
+			}
 
-		note, err := l.Question(id, filepath.Join(dir.Name(), "code.go"))
-		if err != nil {
-			return nil, err
+			notes <- l.Question(id, filepath.Join(dir.Name(), "code.go"))
 		}
-		notes = append(notes, note)
-	}
+		close(notes)
+	}()
 
 	return notes, nil
 }
@@ -129,4 +128,35 @@ func (l *LeetCode) questionInfo() error {
 	}
 
 	return nil
+}
+
+// Question get question info by id from db, get question solution code from dir.
+// If question's info is empty in db, fetch info from leetcode.com api.
+func (l *LeetCode) Question(id int, dir string) ankit.Note {
+	q := question{l: l}
+
+	if err := q.get(id); err != nil {
+		q.err = err
+		return &q
+	}
+
+	if q.empty() {
+		if err := q.fetch(); err != nil {
+			q.err = err
+			return &q
+		}
+		if err := q.update(); err != nil {
+			q.err = err
+			return &q
+		}
+	}
+
+	var err error
+	q.Code, err = l.CodeFn(dir, l.lang)
+	if err != nil {
+		q.err = err
+		return &q
+	}
+
+	return &q
 }
