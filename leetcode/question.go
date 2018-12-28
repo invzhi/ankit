@@ -49,13 +49,13 @@ func (q *Question) Fields() []string {
 // Key can represent a leetcode question, such as ID or TitleSlug.
 type Key func(*Question)
 
-func ID(id int) Key {
+func KeyID(id int) Key {
 	return func(q *Question) {
 		q.ID = id
 	}
 }
 
-func TitleSlug(slug string) Key {
+func KeyTitleSlug(slug string) Key {
 	return func(q *Question) {
 		q.TitleSlug = slug
 	}

@@ -37,7 +37,7 @@ func question(path string, info os.FileInfo) (leetcode.Key, error) {
 			return nil, filepath.SkipDir
 		}
 
-		return leetcode.ID(id), filepath.SkipDir
+		return leetcode.KeyID(id), filepath.SkipDir
 	}
 	return nil, nil
 }
