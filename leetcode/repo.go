@@ -56,7 +56,7 @@ func NewRepo(path, dbfile string, lang Lang, codeFn CodeFunc, keyFn KeyFunc) ank
 		CodeFn: codeFn,
 		KeyFn:  keyFn,
 	}
-	r.mustMetadata()
+	r.mustLoadKeys()
 
 	return &r
 }
@@ -160,13 +160,13 @@ func (r *Repo) note(path string, key Key) ankit.Note {
 	return q
 }
 
-func (r *Repo) mustMetadata() {
-	if err := r.metadata(); err != nil {
+func (r *Repo) mustLoadKeys() {
+	if err := r.loadKeys(); err != nil {
 		panic(err)
 	}
 }
 
-func (r *Repo) metadata() error {
+func (r *Repo) loadKeys() error {
 	const url = "https://leetcode.com/api/problems/all/"
 
 	log.Print("fetching id and title_slug from leetcode api...")
