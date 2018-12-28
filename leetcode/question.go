@@ -10,9 +10,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+// question resprents a question in leetcode repo.
 type question struct {
-	l   *LeetCode
-	err error
+	repo *Repo
+	err  error
 
 	ID          int    `db:"id"`
 	TitleSlug   string `db:"title_slug"`
@@ -24,10 +25,10 @@ type question struct {
 	Code        string
 }
 
-// Err implements the ankit.Note interface.
+// Err returns the error of the question.
 func (q *question) Err() error { return q.err }
 
-// Fields implements the ankit.Note interface.
+// Fields returns the string fields of the question. If the question has a error, return nil.
 func (q *question) Fields() []string {
 	if q.err != nil {
 		return nil
@@ -45,18 +46,38 @@ func (q *question) Fields() []string {
 	}
 }
 
+// Key can represent a leetcode question, such as ID or TitleSlug.
+type Key func(*question)
+
+func KeyID(id int) Key {
+	return func(q *question) {
+		q.ID = id
+	}
+}
+
+func KeyTitleSlug(slug string) Key {
+	return func(q *question) {
+		q.TitleSlug = slug
+	}
+}
+
 func (q *question) empty() bool {
 	return q.Title == ""
 }
 
-func (q *question) get(id int) error {
+func (q *question) getByID() error {
 	const query = "SELECT * FROM questions WHERE id=?"
-	return q.l.db.Get(q, query, id)
+	return q.repo.db.Get(q, query, q.ID)
+}
+
+func (q *question) getByTitleSlug() error {
+	const query = "SELECT * FROM questions WHERE title_slug=?"
+	return q.repo.db.Get(q, query, q.TitleSlug)
 }
 
 func (q *question) update() error {
 	const query = "UPDATE questions SET title=?, content=?, difficulty=?, tags=?, code_snippet=? WHERE id=?"
-	_, err := q.l.db.Exec(query, q.Title, q.Content, q.Difficulty, q.Tags, q.CodeSnippet, q.ID)
+	_, err := q.repo.db.Exec(query, q.Title, q.Content, q.Difficulty, q.Tags, q.CodeSnippet, q.ID)
 	return err
 }
 
@@ -66,7 +87,7 @@ func (q *question) fetch() error {
 		data = `{"operationName":"question","variables":{"titleSlug":"???"},"query":"query question($titleSlug: String!) {\n  question(titleSlug: $titleSlug) {\n    questionId\n    questionFrontendId\n    boundTopicId\n    title\n    content\n    translatedTitle\n    translatedContent\n    isPaidOnly\n    difficulty\n    likes\n    dislikes\n    isLiked\n    similarQuestions\n    contributors {\n      username\n      profileUrl\n      avatarUrl\n      __typename\n    }\n    langToValidPlayground\n    topicTags {\n      name\n      slug\n      translatedName\n      __typename\n    }\n    companyTagStats\n    codeSnippets {\n      lang\n      langSlug\n      code\n      __typename\n    }\n    stats\n    hints\n    solution {\n      id\n      canSeeDetail\n      __typename\n    }\n    status\n    sampleTestCase\n    metaData\n    judgerAvailable\n    judgeType\n    mysqlSchemas\n    enableRunCode\n    enableTestMode\n    envInfo\n    __typename\n  }\n}\n"}`
 	)
 
-	log.Printf("fetching question %d from leetcode.com api...", q.ID)
+	log.Printf("fetching question %d. %s from leetcode api...", q.ID, q.TitleSlug)
 
 	r := strings.NewReader(strings.Replace(data, "???", q.TitleSlug, 1))
 
@@ -77,7 +98,7 @@ func (q *question) fetch() error {
 
 	req.Header.Add("Content-Type", "application/json")
 
-	resp, err := q.l.client.Do(req)
+	resp, err := q.repo.client.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "cannot send a http request")
 	}
@@ -99,8 +120,7 @@ func (q *question) fetch() error {
 			} `json:"question"`
 		} `json:"data"`
 	}
-	dec := json.NewDecoder(resp.Body)
-	if err := dec.Decode(&body); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return errors.Wrap(err, "cannot decode json")
 	}
 
@@ -115,7 +135,7 @@ func (q *question) fetch() error {
 	q.Tags = strings.Join(tags, " ")
 
 	for _, snippet := range body.Data.Question.CodeSnippets {
-		if snippet.Lang == string(q.l.lang) {
+		if snippet.Lang == string(q.repo.lang) {
 			q.CodeSnippet = snippet.Code
 			break
 		}
