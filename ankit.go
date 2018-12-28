@@ -19,8 +19,8 @@ type Deck interface {
 	Notes() (<-chan Note, error)
 }
 
-// WriteToCSV write Deck's notes to io.Writer.
-func WriteToCSV(w io.Writer, d Deck) error {
+// Export write Deck's notes to io.Writer.
+func Export(w io.Writer, d Deck) error {
 	cw := csv.NewWriter(w)
 
 	notes, err := d.Notes()
