@@ -44,7 +44,7 @@ func NewRepo(path, dbfile string, lang Lang, codeFn CodeFunc, keyFn KeyFunc) ank
 		tags         TEXT DEFAULT '',
 		code_snippet TEXT DEFAULT ''
 	);
-	CREATE UNIQUE INDEX questions_title_slug_index ON questions (title_slug)`
+	CREATE UNIQUE INDEX IF NOT EXISTS questions_title_slug_index ON questions (title_slug)`
 
 	db := sqlx.MustOpen("sqlite3", dbfile)
 	db.MustExec(schema)
