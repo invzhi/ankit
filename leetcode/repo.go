@@ -67,15 +67,23 @@ func (r *Repo) Note(paths ...interface{}) <-chan ankit.Note {
 
 	go func() {
 		for _, p := range paths {
-			path := p.(string)
-
-			info, err := os.Lstat(path)
-			if err != nil {
-				log.Printf("path %s is not exist: %v", path, err)
+			path, ok := p.(string)
+			if !ok {
+				log.Printf("%v is not string", p)
 				continue
 			}
 
-			rel, _ := filepath.Rel(r.path, path)
+			info, err := os.Lstat(path)
+			if err != nil {
+				log.Print(err)
+				continue
+			}
+
+			rel, err := filepath.Rel(r.path, path)
+			if err != nil {
+				log.Print(err)
+				continue
+			}
 
 			key, err := r.KeyFn(rel, info)
 			if key != nil {
