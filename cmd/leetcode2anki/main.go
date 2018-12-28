@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
+	"strconv"
 
 	"github.com/invzhi/ankit"
 	"github.com/invzhi/ankit/leetcode"
@@ -28,8 +30,20 @@ func init() {
 	flag.StringVar(&lang, "lang", "golang", "programming language")
 }
 
+func question(path string, info os.FileInfo) (leetcode.Key, error) {
+	if path != "." && info.IsDir() {
+		id, err := strconv.Atoi(path)
+		if err != nil {
+			return nil, filepath.SkipDir
+		}
+
+		return leetcode.ID(id), filepath.SkipDir
+	}
+	return nil, nil
+}
+
 func code(path string, _ leetcode.Lang) (string, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(filepath.Join(path, "code.go"))
 	if err != nil {
 		return "", err
 	}
@@ -56,10 +70,10 @@ func main() {
 	}
 	defer f.Close()
 
-	l := leetcode.New(path, dbfile, leetcode.Lang(lang), code)
+	repo := leetcode.NewRepo(path, dbfile, leetcode.Lang(lang), code, question)
 
 	if all {
-		if err := ankit.Export(f, l); err != nil {
+		if err := ankit.Export(f, repo); err != nil {
 			log.Fatal(err)
 		}
 	}
