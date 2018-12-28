@@ -10,8 +10,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Question resprents a question in leetcode repo.
-type Question struct {
+// question resprents a question in leetcode repo.
+type question struct {
 	repo *Repo
 	err  error
 
@@ -26,10 +26,10 @@ type Question struct {
 }
 
 // Err returns the error of the question.
-func (q *Question) Err() error { return q.err }
+func (q *question) Err() error { return q.err }
 
 // Fields returns the string fields of the question. If the question has a error, return nil.
-func (q *Question) Fields() []string {
+func (q *question) Fields() []string {
 	if q.err != nil {
 		return nil
 	}
@@ -47,41 +47,41 @@ func (q *Question) Fields() []string {
 }
 
 // Key can represent a leetcode question, such as ID or TitleSlug.
-type Key func(*Question)
+type Key func(*question)
 
 func KeyID(id int) Key {
-	return func(q *Question) {
+	return func(q *question) {
 		q.ID = id
 	}
 }
 
 func KeyTitleSlug(slug string) Key {
-	return func(q *Question) {
+	return func(q *question) {
 		q.TitleSlug = slug
 	}
 }
 
-func (q *Question) empty() bool {
+func (q *question) empty() bool {
 	return q.Title == ""
 }
 
-func (q *Question) getByID() error {
+func (q *question) getByID() error {
 	const query = "SELECT * FROM questions WHERE id=?"
 	return q.repo.db.Get(q, query, q.ID)
 }
 
-func (q *Question) getByTitleSlug() error {
+func (q *question) getByTitleSlug() error {
 	const query = "SELECT * FROM questions WHERE title_slug=?"
 	return q.repo.db.Get(q, query, q.TitleSlug)
 }
 
-func (q *Question) update() error {
+func (q *question) update() error {
 	const query = "UPDATE questions SET title=?, content=?, difficulty=?, tags=?, code_snippet=? WHERE id=?"
 	_, err := q.repo.db.Exec(query, q.Title, q.Content, q.Difficulty, q.Tags, q.CodeSnippet, q.ID)
 	return err
 }
 
-func (q *Question) fetch() error {
+func (q *question) fetch() error {
 	const (
 		url  = "https://leetcode.com/graphql"
 		data = `{"operationName":"question","variables":{"titleSlug":"???"},"query":"query question($titleSlug: String!) {\n  question(titleSlug: $titleSlug) {\n    questionId\n    questionFrontendId\n    boundTopicId\n    title\n    content\n    translatedTitle\n    translatedContent\n    isPaidOnly\n    difficulty\n    likes\n    dislikes\n    isLiked\n    similarQuestions\n    contributors {\n      username\n      profileUrl\n      avatarUrl\n      __typename\n    }\n    langToValidPlayground\n    topicTags {\n      name\n      slug\n      translatedName\n      __typename\n    }\n    companyTagStats\n    codeSnippets {\n      lang\n      langSlug\n      code\n      __typename\n    }\n    stats\n    hints\n    solution {\n      id\n      canSeeDetail\n      __typename\n    }\n    status\n    sampleTestCase\n    metaData\n    judgerAvailable\n    judgeType\n    mysqlSchemas\n    enableRunCode\n    enableTestMode\n    envInfo\n    __typename\n  }\n}\n"}`

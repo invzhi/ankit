@@ -117,7 +117,7 @@ func (r *Repo) Notes() <-chan ankit.Note {
 }
 
 func (r *Repo) note(path string, key Key) ankit.Note {
-	q := &Question{repo: r}
+	q := &question{repo: r}
 	key(q)
 
 	var err error
