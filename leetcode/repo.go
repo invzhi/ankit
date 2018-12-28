@@ -14,11 +14,12 @@ import (
 	"github.com/invzhi/ankit"
 )
 
-// KeyFunc ...
+// KeyFunc is the type of function called for each file or directory visited by filepath.Walk.
+// The path argument is a relative path of Repo.path.
 type KeyFunc func(path string, info os.FileInfo) (Key, error)
 
 // CodeFunc is the type of function called for get leetcode question's code.
-type CodeFunc func(dir string, lang Lang) (string, error)
+type CodeFunc func(path string, lang Lang) (string, error)
 
 // Repo represents a repo which store leetcode solution code.
 type Repo struct {
@@ -27,8 +28,6 @@ type Repo struct {
 	lang   Lang
 	client http.Client
 
-	// IsNote is the function called for each file or directory visited by filepath.Walk.
-	// The path argument is a relative path.
 	KeyFn  KeyFunc
 	CodeFn CodeFunc
 }
@@ -57,7 +56,7 @@ func NewRepo(path, dbfile string, lang Lang, codeFn CodeFunc, keyFn KeyFunc) ank
 		CodeFn: codeFn,
 		KeyFn:  keyFn,
 	}
-	r.questionInfo()
+	r.mustMetadata()
 
 	return &r
 }
@@ -76,9 +75,14 @@ func (r *Repo) Note(paths ...interface{}) <-chan ankit.Note {
 				continue
 			}
 
-			key, err := r.KeyFn(path, info)
+			rel, _ := filepath.Rel(r.path, path)
+
+			key, err := r.KeyFn(rel, info)
 			if key != nil {
 				notes <- r.note(path, key)
+			}
+			if err != nil && err != filepath.SkipDir {
+				log.Printf("KeyFn error: %v", err)
 			}
 		}
 		close(notes)
@@ -156,13 +160,13 @@ func (r *Repo) note(path string, key Key) ankit.Note {
 	return q
 }
 
-func (r *Repo) mustInfo() {
-	if err := r.questionInfo(); err != nil {
+func (r *Repo) mustMetadata() {
+	if err := r.metadata(); err != nil {
 		panic(err)
 	}
 }
 
-func (r *Repo) questionInfo() error {
+func (r *Repo) metadata() error {
 	const url = "https://leetcode.com/api/problems/all/"
 
 	log.Print("fetching id and title_slug from leetcode api...")
@@ -182,8 +186,7 @@ func (r *Repo) questionInfo() error {
 		} `json:"stat_status_pairs"`
 	}
 
-	dec := json.NewDecoder(resp.Body)
-	if err := dec.Decode(&questions); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&questions); err != nil {
 		return errors.Wrap(err, "cannot decode questions from json")
 	}
 
