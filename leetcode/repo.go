@@ -13,11 +13,13 @@ import (
 	"github.com/invzhi/ankit"
 )
 
-// KeyFunc is the type of function called for each file or directory visited by filepath.Walk.
-// The path argument is a relative path of Repo.path.
+// KeyFunc is the type of function to indicate questoin in Repo.
+// The path argument is the relative path of Repo.path.
+// The info argument is the os.FileInfo for the named path.
+// See also https://golang.org/pkg/path/filepath/#WalkFunc
 type KeyFunc func(path string, info os.FileInfo) (Key, error)
 
-// CodeFunc is the type of function called for get leetcode question's code.
+// CodeFunc is the type of function called for get question's code.
 type CodeFunc func(path string, lang Lang) (string, error)
 
 // Repo represents a repo which store leetcode solution code.
@@ -90,6 +92,7 @@ func (r *Repo) Notes() <-chan ankit.Note {
 }
 
 // Note returns a question in Repo with specific path and key.
+// The path argument is the argument used to call r.CodeFn.
 func (r *Repo) Note(path string, key Key) ankit.Note {
 	q := &question{repo: r}
 	if q.err = key(q); q.err != nil {

@@ -44,7 +44,7 @@ func (q *question) Fields() []string {
 	}
 }
 
-// Key can represent a leetcode question, such as ID or TitleSlug.
+// Key is the type of function. It use ID or TitleSlug to get question info from db.
 type Key func(*question) error
 
 func KeyID(id int) Key {

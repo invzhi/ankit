@@ -27,7 +27,7 @@ func init() {
 	flag.StringVar(&dbfile, "db", "leetcode.db", "sqlite3 filename")
 	flag.StringVar(&lang, "lang", "golang", "programming language")
 
-	flag.StringVar(&spec, "spec", "", "optional: the path of leetcode question that should be exported only")
+	flag.StringVar(&spec, "spec", "", "optional: the relative path of leetcode question that should be exported only")
 }
 
 func question(path string, info os.FileInfo) (leetcode.Key, error) {
@@ -44,6 +44,7 @@ func question(path string, info os.FileInfo) (leetcode.Key, error) {
 
 func code(path string, _ leetcode.Lang) (string, error) {
 	fset := token.NewFileSet()
+
 	f, err := parser.ParseFile(fset, filepath.Join(path, "code.go"), nil, parser.ParseComments)
 	if err != nil {
 		return "", err
@@ -69,23 +70,19 @@ func main() {
 
 	var d ankit.Deck = repo
 	if spec != "" {
-		info, err := os.Lstat(spec)
+		p := filepath.Join(path, spec)
+
+		info, err := os.Lstat(p)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		// path
-		rel, err := filepath.Rel(path, spec)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		key, err := repo.KeyFn(rel, info)
+		key, err := repo.KeyFn(spec, info)
 		if err != nil && err != filepath.SkipDir {
 			log.Fatal(err)
 		}
 
-		d = ankit.OneNoteDeck(repo.Note(spec, key))
+		d = ankit.OneNoteDeck(repo.Note(p, key))
 	}
 
 	if err := ankit.Export(os.Stdout, d); err != nil {
