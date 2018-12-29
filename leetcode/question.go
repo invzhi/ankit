@@ -40,9 +40,9 @@ func (q *question) Fields() []string {
 		q.Title,
 		q.Content,
 		q.Difficulty,
-		q.Tags,
 		q.CodeSnippet,
 		q.Code,
+		q.Tags,
 	}
 }
 
