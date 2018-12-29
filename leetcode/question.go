@@ -45,17 +45,17 @@ func (q *question) Fields() []string {
 }
 
 // Key can represent a leetcode question, such as ID or TitleSlug.
-type Key func(*question)
+type Key func(*question) error
 
 func KeyID(id int) Key {
-	return func(q *question) {
-		q.ID = id
+	return func(q *question) error {
+		return q.getByID(id)
 	}
 }
 
 func KeyTitleSlug(slug string) Key {
-	return func(q *question) {
-		q.TitleSlug = slug
+	return func(q *question) error {
+		return q.getByTitleSlug(slug)
 	}
 }
 
@@ -63,14 +63,14 @@ func (q *question) empty() bool {
 	return q.Title == ""
 }
 
-func (q *question) getByID() error {
+func (q *question) getByID(id int) error {
 	const query = "SELECT * FROM questions WHERE id=?"
-	return q.repo.db.Get(q, query, q.ID)
+	return q.repo.db.Get(q, query, id)
 }
 
-func (q *question) getByTitleSlug() error {
+func (q *question) getByTitleSlug(slug string) error {
 	const query = "SELECT * FROM questions WHERE title_slug=?"
-	return q.repo.db.Get(q, query, q.TitleSlug)
+	return q.repo.db.Get(q, query, slug)
 }
 
 func (q *question) update() error {

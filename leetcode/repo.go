@@ -2,7 +2,6 @@ package leetcode
 
 import (
 	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -93,41 +92,20 @@ func (r *Repo) Notes() <-chan ankit.Note {
 // Note returns a question in Repo with specific path and key.
 func (r *Repo) Note(path string, key Key) ankit.Note {
 	q := &question{repo: r}
-	key(q)
-
-	var err error
-
-	switch {
-	case q.ID != 0:
-		err = q.getByID()
-	case q.TitleSlug != "":
-		err = q.getByTitleSlug()
-	default:
-		err = errors.New("leetcode.Question has no ID either TitleSlug")
-	}
-
-	if err != nil {
-		q.err = err
+	if q.err = key(q); q.err != nil {
 		return q
 	}
 
 	if q.empty() {
-		if err = q.fetch(); err != nil {
-			q.err = err
+		if q.err = q.fetch(); q.err != nil {
 			return q
 		}
-		if err = q.update(); err != nil {
-			q.err = err
+		if q.err = q.update(); q.err != nil {
 			return q
 		}
 	}
 
-	q.Code, err = r.CodeFn(path, r.lang)
-	if err != nil {
-		q.err = err
-		return q
-	}
-
+	q.Code, q.err = r.CodeFn(path, r.lang)
 	return q
 }
 
