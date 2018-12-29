@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 // question resprents a question in leetcode repo.
@@ -93,14 +91,14 @@ func (q *question) fetch() error {
 
 	req, err := http.NewRequest(http.MethodPost, url, r)
 	if err != nil {
-		return errors.Wrap(err, "cannot create a http request")
+		return err
 	}
 
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := q.repo.client.Do(req)
 	if err != nil {
-		return errors.Wrap(err, "cannot send a http request")
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -121,7 +119,7 @@ func (q *question) fetch() error {
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return errors.Wrap(err, "cannot decode json")
+		return err
 	}
 
 	q.Title = body.Data.Question.Title

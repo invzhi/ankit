@@ -2,6 +2,7 @@ package leetcode
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/pkg/errors"
 
 	"github.com/invzhi/ankit"
 )
@@ -144,7 +144,7 @@ func (r *Repo) loadKeys() error {
 
 	resp, err := r.client.Get(url)
 	if err != nil {
-		return errors.Wrap(err, "cannot get questions from leetcode")
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -158,18 +158,18 @@ func (r *Repo) loadKeys() error {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&questions); err != nil {
-		return errors.Wrap(err, "cannot decode questions from json")
+		return err
 	}
 
 	stmt, err := r.db.Prepare("INSERT OR IGNORE INTO questions(id, title_slug) VALUES(?, ?)")
 	if err != nil {
-		return errors.Wrap(err, "cannot prepare stmt")
+		return err
 	}
 
 	for _, pair := range questions.StatStatusPairs {
 		_, err = stmt.Exec(pair.Stat.FrontendQuestionID, pair.Stat.QuestionTitleSlug)
 		if err != nil {
-			return errors.Wrap(err, "cannot exec stmt")
+			return err
 		}
 	}
 

@@ -4,8 +4,6 @@ import (
 	"encoding/csv"
 	"io"
 	"log"
-
-	"github.com/pkg/errors"
 )
 
 // Note consists of fields.
@@ -45,7 +43,7 @@ func Export(w io.Writer, d Deck) error {
 
 		fields := note.Fields()
 		if err := cw.Write(fields); err != nil {
-			return errors.Wrapf(err, "cannot write fields %v to csv", fields)
+			return err
 		}
 	}
 	cw.Flush()
