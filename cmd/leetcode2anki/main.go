@@ -2,11 +2,14 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
+	"go/format"
+	"go/parser"
+	"go/token"
 	"log"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/invzhi/ankit"
 	"github.com/invzhi/ankit/leetcode"
@@ -42,18 +45,18 @@ func question(path string, info os.FileInfo) (leetcode.Key, error) {
 }
 
 func code(path string, _ leetcode.Lang) (string, error) {
-	f, err := os.Open(filepath.Join(path, "code.go"))
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-
-	b, err := ioutil.ReadAll(f)
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, filepath.Join(path, "code.go"), nil, parser.ParseComments)
 	if err != nil {
 		return "", err
 	}
 
-	return string(b), nil
+	var w strings.Builder
+	if err := format.Node(&w, fset, f.Decls); err != nil {
+		return "", err
+	}
+
+	return w.String(), nil
 }
 
 func main() {
