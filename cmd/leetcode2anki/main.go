@@ -16,16 +16,14 @@ import (
 )
 
 var (
-	path   string
-	dbfile string
-	lang   string
-	spec   string
+	cfg  leetcode.Config
+	spec string
 )
 
 func init() {
-	flag.StringVar(&path, "path", ".", "leetcode repo path")
-	flag.StringVar(&dbfile, "db", "leetcode.db", "sqlite3 filename")
-	flag.StringVar(&lang, "lang", "golang", "programming language")
+	flag.StringVar(&cfg.Path, "path", ".", "leetcode repo path")
+	flag.StringVar(&cfg.Source, "db", "leetcode.db", "sqlite3 filename")
+	flag.StringVar(&cfg.Lang, "lang", "golang", "programming language")
 
 	flag.StringVar(&spec, "spec", "", "optional: the relative path of leetcode question that should be exported only")
 }
@@ -61,16 +59,15 @@ func code(path string, _ leetcode.Lang) (string, error) {
 func main() {
 	flag.Parse()
 
-	lang := leetcode.Lang(lang)
-	if !lang.Valid() {
-		log.Fatalf("%s is unsupported on leetcode", lang)
+	if err := cfg.Valid(); err != nil {
+		log.Fatal(err)
 	}
 
-	repo := leetcode.NewRepo(path, dbfile, lang, code, question)
+	repo := leetcode.NewRepo(cfg, code, question)
 
 	var d ankit.Deck = repo
 	if spec != "" {
-		p := filepath.Join(path, spec)
+		p := filepath.Join(cfg.Path, spec)
 
 		info, err := os.Lstat(p)
 		if err != nil {

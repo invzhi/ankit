@@ -2,6 +2,7 @@ package leetcode
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -22,9 +23,34 @@ type KeyFunc func(path string, info os.FileInfo) (Key, error)
 // CodeFunc is the type of function called for get question's code.
 type CodeFunc func(path string, lang Lang) (string, error)
 
+// Config is the config for Repo.
+type Config struct {
+	Path   string
+	Source string
+	Lang   string
+}
+
+// Valid check cfg.Path and cfg.Lang.
+func (cfg Config) Valid() error {
+	info, err := os.Lstat(cfg.Path)
+	if os.IsNotExist(err) {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s is not a directory", cfg.Path)
+	}
+
+	if !Lang(cfg.Lang).Valid() {
+		return fmt.Errorf("%s is not supported on leetcode", cfg.Lang)
+	}
+
+	return nil
+}
+
 // Repo represents a repo which store leetcode solution code.
 type Repo struct {
-	path   string
+	cfg Config
+
 	db     *sqlx.DB
 	lang   Lang
 	client http.Client
@@ -34,7 +60,7 @@ type Repo struct {
 }
 
 // NewRepo create a anki deck for leetcode repo.
-func NewRepo(path, dbfile string, lang Lang, codeFn CodeFunc, keyFn KeyFunc) *Repo {
+func NewRepo(cfg Config, codeFn CodeFunc, keyFn KeyFunc) *Repo {
 	const schema = `
 	CREATE TABLE IF NOT EXISTS questions (
 		id           INTEGER PRIMARY KEY,
@@ -47,13 +73,13 @@ func NewRepo(path, dbfile string, lang Lang, codeFn CodeFunc, keyFn KeyFunc) *Re
 	);
 	CREATE UNIQUE INDEX IF NOT EXISTS questions_title_slug_index ON questions (title_slug)`
 
-	db := sqlx.MustOpen("sqlite3", dbfile)
+	db := sqlx.MustOpen("sqlite3", cfg.Source)
 	db.MustExec(schema)
 
 	r := Repo{
+		cfg:    cfg,
 		db:     db,
-		path:   path,
-		lang:   lang,
+		lang:   Lang(cfg.Lang),
 		CodeFn: codeFn,
 		KeyFn:  keyFn,
 	}
@@ -67,12 +93,12 @@ func (r *Repo) Notes() <-chan ankit.Note {
 	notes := make(chan ankit.Note)
 
 	go func() {
-		err := filepath.Walk(r.path, func(path string, info os.FileInfo, err error) error {
+		err := filepath.Walk(r.cfg.Path, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 
-			rel, _ := filepath.Rel(r.path, path)
+			rel, _ := filepath.Rel(r.cfg.Path, path)
 
 			key, err := r.KeyFn(rel, info)
 			if key != nil {
