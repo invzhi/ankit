@@ -67,12 +67,28 @@ func main() {
 
 	repo := leetcode.NewRepo(path, dbfile, lang, code, question)
 
-	var keys []interface{}
+	var d ankit.Deck = repo
 	if spec != "" {
-		keys = append(keys, spec)
+		info, err := os.Lstat(spec)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// path
+		rel, err := filepath.Rel(path, spec)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		key, err := repo.KeyFn(rel, info)
+		if err != nil && err != filepath.SkipDir {
+			log.Fatal(err)
+		}
+
+		d = ankit.OneNoteDeck(repo.Note(spec, key))
 	}
 
-	if err := ankit.Export(os.Stdout, repo, keys...); err != nil {
+	if err := ankit.Export(os.Stdout, d); err != nil {
 		log.Fatal(err)
 	}
 }

@@ -33,7 +33,7 @@ type Repo struct {
 }
 
 // NewRepo create a anki deck for leetcode repo.
-func NewRepo(path, dbfile string, lang Lang, codeFn CodeFunc, keyFn KeyFunc) ankit.Deck {
+func NewRepo(path, dbfile string, lang Lang, codeFn CodeFunc, keyFn KeyFunc) *Repo {
 	const schema = `
 	CREATE TABLE IF NOT EXISTS questions (
 		id           INTEGER PRIMARY KEY,
@@ -61,45 +61,7 @@ func NewRepo(path, dbfile string, lang Lang, codeFn CodeFunc, keyFn KeyFunc) ank
 	return &r
 }
 
-// Note returns questions which can be retrieved by paths in LeetCode repo.
-func (r *Repo) Note(paths ...interface{}) <-chan ankit.Note {
-	notes := make(chan ankit.Note)
-
-	go func() {
-		for _, p := range paths {
-			path, ok := p.(string)
-			if !ok {
-				log.Printf("%v is not string", p)
-				continue
-			}
-
-			info, err := os.Lstat(path)
-			if err != nil {
-				log.Print(err)
-				continue
-			}
-
-			rel, err := filepath.Rel(r.path, path)
-			if err != nil {
-				log.Print(err)
-				continue
-			}
-
-			key, err := r.KeyFn(rel, info)
-			if key != nil {
-				notes <- r.note(path, key)
-			}
-			if err != nil && err != filepath.SkipDir {
-				log.Printf("KeyFn error: %v", err)
-			}
-		}
-		close(notes)
-	}()
-
-	return notes
-}
-
-// Notes returns all questions in LeetCode repo.
+// Notes returns all questions in Repo.
 func (r *Repo) Notes() <-chan ankit.Note {
 	notes := make(chan ankit.Note)
 
@@ -113,7 +75,7 @@ func (r *Repo) Notes() <-chan ankit.Note {
 
 			key, err := r.KeyFn(rel, info)
 			if key != nil {
-				notes <- r.note(path, key)
+				notes <- r.Note(path, key)
 			}
 
 			return err
@@ -128,7 +90,8 @@ func (r *Repo) Notes() <-chan ankit.Note {
 	return notes
 }
 
-func (r *Repo) note(path string, key Key) ankit.Note {
+// Note returns a question in Repo with specific path and key.
+func (r *Repo) Note(path string, key Key) ankit.Note {
 	q := &question{repo: r}
 	key(q)
 
