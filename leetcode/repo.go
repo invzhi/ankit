@@ -59,7 +59,7 @@ type Repo struct {
 	CodeFn CodeFunc
 }
 
-// NewRepo create a anki deck for leetcode repo.
+// NewRepo represents a leetcode repo.
 func NewRepo(cfg Config, codeFn CodeFunc, keyFn KeyFunc) *Repo {
 	const schema = `
 	CREATE TABLE IF NOT EXISTS questions (
