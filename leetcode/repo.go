@@ -14,7 +14,7 @@ import (
 	"github.com/invzhi/ankit"
 )
 
-// KeyFunc is the type of function to indicate questoin in Repo.
+// KeyFunc is the type of function to indicate question in Repo.
 // The path argument is the relative path of Repo.path.
 // The info argument is the os.FileInfo for the named path.
 // See also https://golang.org/pkg/path/filepath/#WalkFunc
