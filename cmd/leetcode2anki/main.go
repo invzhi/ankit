@@ -29,15 +29,16 @@ func init() {
 }
 
 func question(path string, info os.FileInfo) (leetcode.Key, error) {
-	if path != "." && info.IsDir() {
-		id, err := strconv.Atoi(path)
-		if err != nil {
-			return nil, filepath.SkipDir
-		}
-
-		return leetcode.KeyID(id), filepath.SkipDir
+	if path == "." || !info.IsDir() {
+		return nil, nil
 	}
-	return nil, nil
+
+	id, err := strconv.Atoi(path)
+	if err != nil {
+		return nil, filepath.SkipDir
+	}
+
+	return leetcode.KeyID(id), filepath.SkipDir
 }
 
 func code(path string, _ leetcode.Lang) (string, error) {
@@ -64,12 +65,13 @@ func main() {
 	}
 
 	repo := leetcode.NewRepo(cfg, code, question)
+	defer repo.Close()
 
-	var d ankit.Deck = repo
+	var r ankit.Reader = repo
 	if spec != "" {
-		p := filepath.Join(cfg.Path, spec)
+		path := filepath.Join(cfg.Path, spec)
 
-		info, err := os.Lstat(p)
+		info, err := os.Lstat(path)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -79,10 +81,15 @@ func main() {
 			log.Fatal(err)
 		}
 
-		d = ankit.OneNoteDeck(repo.Note(p, key))
+		q, err := repo.Question(key, path)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		r = ankit.OneNoteReader(q)
 	}
 
-	if err := ankit.Export(os.Stdout, d); err != nil {
+	if err := ankit.Copy(os.Stdout, r); err != nil {
 		log.Fatal(err)
 	}
 }

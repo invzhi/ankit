@@ -1,8 +1,10 @@
 package leetcode
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -10,18 +12,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
-
-	"github.com/invzhi/ankit"
 )
-
-// KeyFunc is the type of function to indicate question in Repo.
-// The path argument is the relative path of Repo.path.
-// The info argument is the os.FileInfo for the named path.
-// See also https://golang.org/pkg/path/filepath/#WalkFunc
-type KeyFunc func(path string, info os.FileInfo) (Key, error)
-
-// CodeFunc is the type of function called for get question's code.
-type CodeFunc func(path string, lang Lang) (string, error)
 
 // Config is the config for Repo.
 type Config struct {
@@ -47,8 +38,22 @@ func (cfg Config) Valid() error {
 	return nil
 }
 
+// KeyFunc is the type of function to indicate question in Repo.
+// The path argument is the relative path of Repo.path.
+// The info argument is the os.FileInfo for the named path.
+// See also https://golang.org/pkg/path/filepath/#WalkFunc
+type KeyFunc func(path string, info os.FileInfo) (Key, error)
+
+// CodeFunc is the type of function called for get question's code.
+type CodeFunc func(path string, lang Lang) (string, error)
+
 // Repo represents a repo which store leetcode solution code.
 type Repo struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	kpc chan keyPath
+
 	cfg Config
 
 	db     *sqlx.DB
@@ -88,9 +93,9 @@ func NewRepo(cfg Config, codeFn CodeFunc, keyFn KeyFunc) *Repo {
 	return &r
 }
 
-// Notes returns all questions in Repo.
-func (r *Repo) Notes() <-chan ankit.Note {
-	notes := make(chan ankit.Note)
+func (r *Repo) do() {
+	r.kpc = make(chan keyPath)
+	r.ctx, r.cancel = context.WithCancel(context.Background())
 
 	go func() {
 		err := filepath.Walk(r.cfg.Path, func(path string, info os.FileInfo, err error) error {
@@ -102,7 +107,11 @@ func (r *Repo) Notes() <-chan ankit.Note {
 
 			key, err := r.KeyFn(rel, info)
 			if key != nil {
-				notes <- r.Note(path, key)
+				select {
+				case <-r.ctx.Done():
+					return r.ctx.Err()
+				case r.kpc <- keyPath{key: key, path: path}:
+				}
 			}
 
 			return err
@@ -111,31 +120,61 @@ func (r *Repo) Notes() <-chan ankit.Note {
 			log.Printf("filepath.Walk error: %v", err)
 		}
 
-		close(notes)
+		close(r.kpc)
 	}()
-
-	return notes
 }
 
-// Note returns a question in Repo with specific path and key.
-// The path argument is the argument used to call r.CodeFn.
-func (r *Repo) Note(path string, key Key) ankit.Note {
-	q := &question{repo: r}
-	if q.err = key(q); q.err != nil {
-		return q
+// Close close the Repo, stop filepath.Walk.
+func (r *Repo) Close() error {
+	if r.cancel != nil {
+		r.cancel()
+	}
+	return nil
+}
+
+// Read reads fields from questions.
+func (r *Repo) Read() ([]string, error) {
+	if r.kpc == nil {
+		r.do()
+	}
+
+	kp, ok := <-r.kpc
+	if !ok {
+		return nil, io.EOF
+	}
+
+	q, err := r.Question(kp.key, kp.path)
+	if err != nil {
+		return nil, err
+	}
+
+	return q.Fields(), nil
+}
+
+// Question returns a Question by key and path in Repo.
+func (r *Repo) Question(key Key, path string) (*Question, error) {
+	var err error
+
+	q := Question{repo: r}
+	if err = key(&q); err != nil {
+		return nil, err
 	}
 
 	if q.empty() {
-		if q.err = q.fetch(); q.err != nil {
-			return q
+		if err = q.fetch(); err != nil {
+			return nil, err
 		}
-		if q.err = q.update(); q.err != nil {
-			return q
+		if err = q.update(); err != nil {
+			return nil, err
 		}
 	}
 
-	q.Code, q.err = r.CodeFn(path, r.lang)
-	return q
+	q.Code, err = r.CodeFn(path, r.lang)
+	if err != nil {
+		return nil, err
+	}
+
+	return &q, nil
 }
 
 func (r *Repo) mustLoadKeys() {

@@ -8,10 +8,9 @@ import (
 	"strings"
 )
 
-// question resprents a question in leetcode repo.
-type question struct {
+// Question resprents a Question in leetcode repo.
+type Question struct {
 	repo *Repo
-	err  error
 
 	ID          int    `db:"id"`
 	TitleSlug   string `db:"title_slug"`
@@ -23,15 +22,8 @@ type question struct {
 	Code        string
 }
 
-// Err returns the error of the question.
-func (q *question) Err() error { return q.err }
-
 // Fields returns the string fields of the question. If the question has a error, return nil.
-func (q *question) Fields() []string {
-	if q.err != nil {
-		return nil
-	}
-
+func (q *Question) Fields() []string {
 	return []string{
 		strconv.Itoa(q.ID),
 		q.TitleSlug,
@@ -45,41 +37,46 @@ func (q *question) Fields() []string {
 }
 
 // Key is the type of function. It use ID or TitleSlug to get question info from db.
-type Key func(*question) error
+type Key func(*Question) error
 
 func KeyID(id int) Key {
-	return func(q *question) error {
+	return func(q *Question) error {
 		return q.getByID(id)
 	}
 }
 
 func KeyTitleSlug(slug string) Key {
-	return func(q *question) error {
+	return func(q *Question) error {
 		return q.getByTitleSlug(slug)
 	}
 }
 
-func (q *question) empty() bool {
+type keyPath struct {
+	key  Key
+	path string
+}
+
+func (q *Question) empty() bool {
 	return q.Title == ""
 }
 
-func (q *question) getByID(id int) error {
+func (q *Question) getByID(id int) error {
 	const query = "SELECT * FROM questions WHERE id=?"
 	return q.repo.db.Get(q, query, id)
 }
 
-func (q *question) getByTitleSlug(slug string) error {
+func (q *Question) getByTitleSlug(slug string) error {
 	const query = "SELECT * FROM questions WHERE title_slug=?"
 	return q.repo.db.Get(q, query, slug)
 }
 
-func (q *question) update() error {
+func (q *Question) update() error {
 	const query = "UPDATE questions SET title=?, content=?, difficulty=?, tags=?, code_snippet=? WHERE id=?"
 	_, err := q.repo.db.Exec(query, q.Title, q.Content, q.Difficulty, q.Tags, q.CodeSnippet, q.ID)
 	return err
 }
 
-func (q *question) fetch() error {
+func (q *Question) fetch() error {
 	const (
 		url  = "https://leetcode.com/graphql"
 		data = `{"operationName":"question","variables":{"titleSlug":"???"},"query":"query question($titleSlug: String!) {\n  question(titleSlug: $titleSlug) {\n    questionId\n    questionFrontendId\n    boundTopicId\n    title\n    content\n    translatedTitle\n    translatedContent\n    isPaidOnly\n    difficulty\n    likes\n    dislikes\n    isLiked\n    similarQuestions\n    contributors {\n      username\n      profileUrl\n      avatarUrl\n      __typename\n    }\n    langToValidPlayground\n    topicTags {\n      name\n      slug\n      translatedName\n      __typename\n    }\n    companyTagStats\n    codeSnippets {\n      lang\n      langSlug\n      code\n      __typename\n    }\n    stats\n    hints\n    solution {\n      id\n      canSeeDetail\n      __typename\n    }\n    status\n    sampleTestCase\n    metaData\n    judgerAvailable\n    judgeType\n    mysqlSchemas\n    enableRunCode\n    enableTestMode\n    envInfo\n    __typename\n  }\n}\n"}`
