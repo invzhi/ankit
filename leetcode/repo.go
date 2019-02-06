@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"log"
 	"net/http"
@@ -153,26 +154,25 @@ func (r *Repo) Read() ([]string, error) {
 
 // Question returns a Question by key and path in Repo.
 func (r *Repo) Question(key Key, path string) (*Question, error) {
-	var err error
-
 	q := Question{repo: r}
-	if err = key(&q); err != nil {
+	if err := key(&q); err != nil {
 		return nil, err
 	}
 
 	if q.empty() {
-		if err = q.fetch(); err != nil {
+		if err := q.fetch(); err != nil {
 			return nil, err
 		}
-		if err = q.update(); err != nil {
+		if err := q.update(); err != nil {
 			return nil, err
 		}
 	}
 
-	q.Code, err = r.CodeFn(path, r.lang)
+	code, err := r.CodeFn(path, r.lang)
 	if err != nil {
 		return nil, err
 	}
+	q.Code = html.EscapeString(code)
 
 	return &q, nil
 }
